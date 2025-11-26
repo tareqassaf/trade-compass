@@ -1,3 +1,6 @@
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,75 +12,131 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Modern SaaS Trading Journal - Dark Theme */
-    --background: 222 47% 7%;
-    --foreground: 210 40% 98%;
+    --background: 60 4% 95%;
+    --foreground: 24 9% 10%;
 
-    --card: 220 40% 10%;
-    --card-foreground: 210 40% 98%;
+    --card: 60 9% 97%;
+    --card-foreground: 24 9% 10%;
 
-    --popover: 220 40% 10%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 20 5% 90%;
+    --popover-foreground: 24 9% 10%;
 
     /* Primary: Vibrant blue-violet */
-    --primary: 250 95% 65%;
-    --primary-foreground: 0 0% 100%;
-    
+    --primary: 37 92% 50%;
+    --primary-foreground: 47 100% 96%;
+
     /* Secondary: Deep purple */
-    --secondary: 265 70% 45%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 24 5% 44%;
+    --secondary-foreground: 60 9% 97%;
 
     /* Muted surfaces */
-    --muted: 220 30% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 23 5% 82%;
+    --muted-foreground: 24 9% 10%;
 
     /* Accent: Cyan-blue */
-    --accent: 200 95% 55%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 47 100% 96%;
+    --accent-foreground: 37 92% 50%;
 
     /* Success green */
     --success: 142 76% 45%;
     --success-foreground: 0 0% 100%;
-    
+
     /* Destructive/Loss red */
-    --destructive: 0 85% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 85% 97%;
 
     /* Warning amber */
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 220 30% 18%;
-    --input: 220 30% 18%;
-    --ring: 250 95% 65%;
+    --border: 23 5% 82%;
+    --input: 23 5% 82%;
+    --ring: 37 92% 50%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     /* Chart colors */
-    --chart-1: 250 95% 65%;
-    --chart-2: 200 95% 55%;
-    --chart-3: 142 76% 45%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 340 82% 52%;
+    --chart-1: 45 96% 64%;
+    --chart-2: 47 95% 53%;
+    --chart-3: 43 96% 56%;
+    --chart-4: 37 92% 50%;
+    --chart-5: 24 5% 44%;
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(250, 95%, 65%), hsl(265, 70%, 55%));
     --gradient-success: linear-gradient(135deg, hsl(142, 76%, 45%), hsl(160, 84%, 39%));
     --gradient-danger: linear-gradient(135deg, hsl(0, 85%, 60%), hsl(340, 82%, 52%));
     --gradient-card: linear-gradient(145deg, hsl(220, 40%, 11%), hsl(220, 40%, 9%));
-    
+
     /* Shadows */
     --shadow-glow: 0 0 20px hsl(250 95% 65% / 0.3);
     --shadow-card: 0 10px 30px -10px hsl(220 50% 5% / 0.8);
-    
+
     /* Sidebar */
     --sidebar-background: 220 45% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 250 95% 65%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 35% 14%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 30% 18%;
-    --sidebar-ring: 250 95% 65%;
+    --sidebar-foreground: 24 9% 10%;
+    --sidebar-primary: 37 92% 50%;
+    --sidebar-primary-foreground: 47 100% 96%;
+    --sidebar-accent: 24 5% 44%;
+    --sidebar-accent-foreground: 60 9% 97%;
+    --sidebar-border: 23 5% 82%;
+    --sidebar-ring: 37 92% 50%;
+    --sidebar: 60 9% 97%;
+    --font-sans: 'Source Sans Pro', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    --font-serif: 'Source Serif Pro', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+    --font-mono: 'Source Code Pro', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+    --tracking-normal: 0em;
+    --spacing: 0.25rem;
+  }
+  .dark {
+    --background: 24 9% 10%;
+    --foreground: 60 9% 97%;
+    --card: 12 6% 15%;
+    --card-foreground: 60 9% 97%;
+    --popover: 30 6% 25%;
+    --popover-foreground: 60 9% 97%;
+    --primary: 43 96% 56%;
+    --primary-foreground: 20 91% 14%;
+    --secondary: 24 5% 44%;
+    --secondary-foreground: 60 9% 97%;
+    --muted: 24 5% 44%;
+    --muted-foreground: 60 9% 97%;
+    --accent: 25 83% 14%;
+    --accent-foreground: 47 95% 53%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 85% 97%;
+    --border: 33 5% 32%;
+    --input: 33 5% 32%;
+    --ring: 43 96% 56%;
+    --chart-1: 45 96% 64%;
+    --chart-2: 48 96% 76%;
+    --chart-3: 43 96% 56%;
+    --chart-4: 37 92% 50%;
+    --chart-5: 33 5% 32%;
+    --sidebar: 12 6% 15%;
+    --sidebar-foreground: 60 9% 97%;
+    --sidebar-primary: 43 96% 56%;
+    --sidebar-primary-foreground: 20 91% 14%;
+    --sidebar-accent: 47 95% 53%;
+    --sidebar-accent-foreground: 25 83% 14%;
+    --sidebar-border: 33 5% 32%;
+    --sidebar-ring: 43 96% 56%;
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
   }
 }
 
@@ -89,22 +148,34 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
-  
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  
+
   ::-webkit-scrollbar-track {
     @apply bg-background;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     @apply bg-muted rounded-lg;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/30;
+  }
+}
+
+/* ---break---
+*/
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
