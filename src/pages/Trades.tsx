@@ -44,7 +44,7 @@ export default function Trades() {
             View and manage all your trades
           </p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90">
+        <Button onClick={() => navigate("/trades/new")} className="bg-gradient-primary hover:opacity-90">
           <Plus className="mr-2 h-4 w-4" />
           Add Trade
         </Button>
@@ -122,7 +122,7 @@ export default function Trades() {
           ) : (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">No trades found</p>
-              <Button className="bg-gradient-primary hover:opacity-90">
+              <Button onClick={() => navigate("/trades/new")} className="bg-gradient-primary hover:opacity-90">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Your First Trade
               </Button>
