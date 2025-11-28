@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Trades from "./pages/Trades";
 import AddTrade from "./pages/AddTrade";
+import ImportTrades from "./pages/ImportTrades";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -51,6 +52,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <AddTrade />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/trades/import"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ImportTrades />
                   </Layout>
                 </ProtectedRoute>
               }

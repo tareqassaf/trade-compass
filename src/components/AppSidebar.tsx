@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrendingUp, FileText, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, TrendingUp, FileText, Settings, LogOut, Upload } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -24,6 +24,11 @@ const menuItems = [
     title: "Trades",
     icon: TrendingUp,
     url: "/trades",
+  },
+  {
+    title: "Import",
+    icon: Upload,
+    url: "/trades/import",
   },
   {
     title: "Reports",
