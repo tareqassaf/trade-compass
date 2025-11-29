@@ -13,6 +13,7 @@ import TradeDetail from "./pages/TradeDetail";
 import AddTrade from "./pages/AddTrade";
 import ImportTrades from "./pages/ImportTrades";
 import Reports from "./pages/Reports";
+import Journal from "./pages/Journal";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -83,6 +84,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Reports />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/journal"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Journal />
                   </Layout>
                 </ProtectedRoute>
               }
