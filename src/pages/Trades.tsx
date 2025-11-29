@@ -74,7 +74,8 @@ export default function Trades() {
               {trades.map((trade) => (
                 <div
                   key={trade.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:border-border transition-colors bg-card/50"
+                  onClick={() => navigate(`/trades/${trade.id}`)}
+                  className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:border-border transition-colors bg-card/50 cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
                     <div className={`p-2 rounded-lg ${
