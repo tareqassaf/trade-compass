@@ -9,6 +9,7 @@ import { Layout } from "@/components/Layout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Trades from "./pages/Trades";
+import TradeDetail from "./pages/TradeDetail";
 import AddTrade from "./pages/AddTrade";
 import ImportTrades from "./pages/ImportTrades";
 import Reports from "./pages/Reports";
@@ -42,6 +43,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Trades />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/trades/:id"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <TradeDetail />
                   </Layout>
                 </ProtectedRoute>
               }
