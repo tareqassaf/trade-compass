@@ -14,6 +14,7 @@ import AddTrade from "./pages/AddTrade";
 import ImportTrades from "./pages/ImportTrades";
 import Reports from "./pages/Reports";
 import Journal from "./pages/Journal";
+import Sessions from "./pages/Sessions";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -94,6 +95,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Journal />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sessions"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Sessions />
                   </Layout>
                 </ProtectedRoute>
               }
