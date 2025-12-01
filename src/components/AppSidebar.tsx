@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrendingUp, FileText, Settings, LogOut, Upload, BookOpen } from "lucide-react";
+import { LayoutDashboard, TrendingUp, FileText, Settings, LogOut, Upload, BookOpen, Clock } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -39,6 +39,11 @@ const menuItems = [
     title: "Journal",
     icon: BookOpen,
     url: "/journal",
+  },
+  {
+    title: "Sessions",
+    icon: Clock,
+    url: "/sessions",
   },
   {
     title: "Settings",
