@@ -15,6 +15,7 @@ import ImportTrades from "./pages/ImportTrades";
 import Reports from "./pages/Reports";
 import Journal from "./pages/Journal";
 import Sessions from "./pages/Sessions";
+import Strategies from "./pages/Strategies";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -105,6 +106,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Sessions />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/strategies"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Strategies />
                   </Layout>
                 </ProtectedRoute>
               }
