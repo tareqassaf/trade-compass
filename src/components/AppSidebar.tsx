@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrendingUp, FileText, Settings, LogOut, Upload, BookOpen, Clock, Target } from "lucide-react";
+import { LayoutDashboard, TrendingUp, FileText, Settings, LogOut, Upload, BookOpen, Clock, Target, Coins } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -49,6 +49,11 @@ const menuItems = [
     title: "Strategies",
     icon: Target,
     url: "/strategies",
+  },
+  {
+    title: "Instruments",
+    icon: Coins,
+    url: "/instruments",
   },
   {
     title: "Settings",
