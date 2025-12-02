@@ -16,6 +16,7 @@ import Reports from "./pages/Reports";
 import Journal from "./pages/Journal";
 import Sessions from "./pages/Sessions";
 import Strategies from "./pages/Strategies";
+import Instruments from "./pages/Instruments";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -116,6 +117,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Strategies />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instruments"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Instruments />
                   </Layout>
                 </ProtectedRoute>
               }
