@@ -17,6 +17,7 @@ import Journal from "./pages/Journal";
 import Sessions from "./pages/Sessions";
 import Strategies from "./pages/Strategies";
 import Instruments from "./pages/Instruments";
+import TradeCalendar from "./pages/TradeCalendar";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -127,6 +128,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Instruments />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/calendar"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <TradeCalendar />
                   </Layout>
                 </ProtectedRoute>
               }
