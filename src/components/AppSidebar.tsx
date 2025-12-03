@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrendingUp, FileText, Settings, LogOut, Upload, BookOpen, Clock, Target, Coins, CalendarDays } from "lucide-react";
+import { LayoutDashboard, TrendingUp, FileText, Settings, LogOut, Upload, BookOpen, Clock, Target, Coins, CalendarDays, BarChart3 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -59,6 +59,11 @@ const menuItems = [
     title: "Calendar",
     icon: CalendarDays,
     url: "/calendar",
+  },
+  {
+    title: "Performance",
+    icon: BarChart3,
+    url: "/performance",
   },
   {
     title: "Settings",
