@@ -15,6 +15,8 @@ interface PerformanceMetrics {
   avgR: number;
   netPnL: number;
   expectancy: number;
+  profitFactor: number;
+  sharpeRatio: number;
 }
 
 export default function Reports() {
@@ -48,8 +50,10 @@ export default function Reports() {
 
     return Object.entries(grouped).map(([name, items]: [string, any[]]) => {
       const closedTrades = items.filter(t => t.result !== "open");
-      const wins = closedTrades.filter(t => t.result === "win").length;
-      const losses = closedTrades.filter(t => t.result === "loss").length;
+      const winningTrades = closedTrades.filter(t => t.result === "win");
+      const losingTrades = closedTrades.filter(t => t.result === "loss");
+      const wins = winningTrades.length;
+      const losses = losingTrades.length;
       const totalTrades = closedTrades.length;
       const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
       
@@ -58,6 +62,20 @@ export default function Reports() {
       
       const netPnL = closedTrades.reduce((sum, t) => sum + (t.pnl_amount || 0), 0);
       const expectancy = totalTrades > 0 ? netPnL / totalTrades : 0;
+
+      // Profit Factor
+      const grossProfit = winningTrades.reduce((sum, t) => sum + (t.pnl_amount || 0), 0);
+      const grossLoss = Math.abs(losingTrades.reduce((sum, t) => sum + (t.pnl_amount || 0), 0));
+      const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+
+      // Sharpe Ratio
+      const returns = closedTrades.map(t => t.pnl_amount || 0);
+      const meanReturn = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
+      const variance = returns.length > 1 
+        ? returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / (returns.length - 1)
+        : 0;
+      const stdDev = Math.sqrt(variance);
+      const sharpeRatio = stdDev > 0 ? meanReturn / stdDev : 0;
 
       return {
         name,
@@ -68,6 +86,8 @@ export default function Reports() {
         avgR,
         netPnL,
         expectancy,
+        profitFactor,
+        sharpeRatio,
       };
     }).sort((a, b) => b.netPnL - a.netPnL);
   };
@@ -110,13 +130,14 @@ export default function Reports() {
           <TableHead className="text-right">Win Rate</TableHead>
           <TableHead className="text-right">Avg R</TableHead>
           <TableHead className="text-right">Net P&L</TableHead>
-          <TableHead className="text-right">Expectancy</TableHead>
+          <TableHead className="text-right">Profit Factor</TableHead>
+          <TableHead className="text-right">Sharpe</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {metrics.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={6} className="text-center text-muted-foreground">
+            <TableCell colSpan={7} className="text-center text-muted-foreground">
               No data available
             </TableCell>
           </TableRow>
@@ -139,8 +160,13 @@ export default function Reports() {
                 </span>
               </TableCell>
               <TableCell className="text-right">
-                <span className={metric.expectancy >= 0 ? "text-success" : "text-destructive"}>
-                  ${metric.expectancy.toFixed(2)}
+                <span className={metric.profitFactor >= 1 ? "text-success" : "text-destructive"}>
+                  {metric.profitFactor === Infinity ? "∞" : metric.profitFactor.toFixed(2)}
+                </span>
+              </TableCell>
+              <TableCell className="text-right">
+                <span className={metric.sharpeRatio >= 0 ? "text-success" : "text-destructive"}>
+                  {metric.sharpeRatio.toFixed(2)}
                 </span>
               </TableCell>
             </TableRow>

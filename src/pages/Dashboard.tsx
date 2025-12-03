@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Target, DollarSign, Trophy, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Target, DollarSign, Trophy, Activity, Scale, Gauge } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 export default function Dashboard() {
@@ -37,6 +37,20 @@ export default function Dashboard() {
         ? (winRate / 100) * avgWin + (1 - winRate / 100) * avgLoss
         : 0;
 
+      // Profit Factor = Gross Profit / |Gross Loss|
+      const grossProfit = winningTrades.reduce((sum, t) => sum + (t.pnl_amount || 0), 0);
+      const grossLoss = Math.abs(losingTrades.reduce((sum, t) => sum + (t.pnl_amount || 0), 0));
+      const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+
+      // Sharpe Ratio = Mean Return / Std Dev of Returns (simplified, assuming 0 risk-free rate)
+      const returns = closedTrades.map(t => t.pnl_amount || 0);
+      const meanReturn = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
+      const variance = returns.length > 1 
+        ? returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / (returns.length - 1)
+        : 0;
+      const stdDev = Math.sqrt(variance);
+      const sharpeRatio = stdDev > 0 ? meanReturn / stdDev : 0;
+
       return {
         totalTrades: closedTrades.length,
         totalPnl,
@@ -45,6 +59,8 @@ export default function Dashboard() {
         expectancy,
         avgWin,
         avgLoss,
+        profitFactor,
+        sharpeRatio,
       };
     },
   });
@@ -139,6 +155,18 @@ export default function Dashboard() {
       value: `$${(stats?.avgWin || 0).toFixed(0)} / $${Math.abs(stats?.avgLoss || 0).toFixed(0)}`,
       icon: Activity,
       gradient: "bg-gradient-primary",
+    },
+    {
+      title: "Profit Factor",
+      value: stats?.profitFactor === Infinity ? "∞" : (stats?.profitFactor || 0).toFixed(2),
+      icon: Scale,
+      gradient: (stats?.profitFactor || 0) >= 1 ? "bg-gradient-success" : "bg-gradient-danger",
+    },
+    {
+      title: "Sharpe Ratio",
+      value: (stats?.sharpeRatio || 0).toFixed(2),
+      icon: Gauge,
+      gradient: (stats?.sharpeRatio || 0) >= 0 ? "bg-gradient-success" : "bg-gradient-danger",
     },
   ];
 
