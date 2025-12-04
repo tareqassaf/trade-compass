@@ -7,13 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, TrendingUp, TrendingDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useFilters } from "@/hooks/useFilters";
 
 export default function Trades() {
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
+  const { filters, applyFilters, hasActiveFilters } = useFilters();
 
   const { data: trades, isLoading } = useQuery({
-    queryKey: ["trades", search],
+    queryKey: ["trades", search, filters],
     queryFn: async () => {
       let query = supabase
         .from("trades")
@@ -31,19 +33,24 @@ export default function Trades() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      
+      // Apply global filters
+      return applyFilters(data || []);
     },
   });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-3xl font-bold">Trades</h1>
-          <p className="text-muted-foreground mt-1">
-            View and manage all your trades
-          </p>
+          {hasActiveFilters && (
+            <Badge variant="secondary" className="h-6">Filtered</Badge>
+          )}
         </div>
+        <p className="text-muted-foreground mt-1">
+          View and manage all your trades
+        </p>
         <Button onClick={() => navigate("/trades/new")} className="bg-gradient-primary hover:opacity-90">
           <Plus className="mr-2 h-4 w-4" />
           Add Trade

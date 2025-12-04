@@ -4,10 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useFilters } from "@/hooks/useFilters";
 
 interface DailyStats {
   date: string;
@@ -21,26 +23,30 @@ export default function TradeCalendar() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const { filters, applyFilters, hasActiveFilters } = useFilters();
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
 
   const { data: dailyStats, isLoading } = useQuery({
-    queryKey: ["daily-stats", user?.id, format(monthStart, "yyyy-MM")],
+    queryKey: ["daily-stats", user?.id, format(monthStart, "yyyy-MM"), filters],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("trades")
-        .select("trading_day, pnl_amount, result")
+        .select("*")
         .eq("user_id", user!.id)
         .gte("trading_day", format(monthStart, "yyyy-MM-dd"))
         .lte("trading_day", format(monthEnd, "yyyy-MM-dd"));
 
       if (error) throw error;
 
+      // Apply global filters
+      const filteredData = applyFilters(data || []);
+
       // Aggregate by day
       const statsMap = new Map<string, DailyStats>();
       
-      data?.forEach((trade) => {
+      filteredData.forEach((trade) => {
         const dateKey = trade.trading_day;
         const existing = statsMap.get(dateKey) || {
           date: dateKey,
@@ -106,11 +112,16 @@ export default function TradeCalendar() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Trade Calendar</h1>
-        <p className="text-muted-foreground">
-          View your daily trading performance at a glance
-        </p>
+      <div className="flex items-center gap-2">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Trade Calendar</h1>
+          <p className="text-muted-foreground">
+            View your daily trading performance at a glance
+          </p>
+        </div>
+        {hasActiveFilters && (
+          <Badge variant="secondary" className="h-6">Filtered</Badge>
+        )}
       </div>
 
       {/* Monthly Summary */}

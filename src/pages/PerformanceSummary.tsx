@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, parseISO, isWithinInterval } from "date-fns";
 import { TrendingUp, TrendingDown, Minus, ArrowUp, ArrowDown } from "lucide-react";
+import { useFilters } from "@/hooks/useFilters";
 
 interface PeriodStats {
   label: string;
@@ -19,15 +21,17 @@ interface PeriodStats {
 }
 
 const PerformanceSummary = () => {
+  const { filters, applyFilters, hasActiveFilters } = useFilters();
+
   const { data: trades, isLoading } = useQuery({
-    queryKey: ["trades-performance"],
+    queryKey: ["trades-performance", filters],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("trades")
         .select("*")
         .neq("result", "open");
       if (error) throw error;
-      return data;
+      return applyFilters(data || []);
     },
   });
 
@@ -182,11 +186,16 @@ const PerformanceSummary = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Performance Summary</h1>
-        <p className="text-muted-foreground">
-          Track your trading performance over time with week-over-week and month-over-month comparisons.
-        </p>
+      <div className="flex items-center gap-2">
+        <div>
+          <h1 className="text-3xl font-bold">Performance Summary</h1>
+          <p className="text-muted-foreground">
+            Track your trading performance over time with week-over-week and month-over-month comparisons.
+          </p>
+        </div>
+        {hasActiveFilters && (
+          <Badge variant="secondary" className="h-6">Filtered</Badge>
+        )}
       </div>
 
       <Tabs defaultValue="weekly" className="space-y-4">

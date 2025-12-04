@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { useFilters } from "@/hooks/useFilters";
 
 interface PerformanceMetrics {
   name: string;
@@ -20,8 +22,10 @@ interface PerformanceMetrics {
 }
 
 export default function Reports() {
+  const { filters, applyFilters, hasActiveFilters } = useFilters();
+
   const { data: trades, isLoading } = useQuery({
-    queryKey: ["trades-reports"],
+    queryKey: ["trades-reports", filters],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("trades")
@@ -34,7 +38,7 @@ export default function Reports() {
         .order("trading_day", { ascending: true });
 
       if (error) throw error;
-      return data;
+      return applyFilters(data || []);
     },
   });
 
@@ -225,11 +229,16 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Reports</h1>
-        <p className="text-muted-foreground mt-1">
-          Advanced analytics and performance breakdown
-        </p>
+      <div className="flex items-center gap-2">
+        <div>
+          <h1 className="text-3xl font-bold">Reports</h1>
+          <p className="text-muted-foreground mt-1">
+            Advanced analytics and performance breakdown
+          </p>
+        </div>
+        {hasActiveFilters && (
+          <Badge variant="secondary" className="h-6">Filtered</Badge>
+        )}
       </div>
 
       <Tabs defaultValue="instrument" className="w-full">

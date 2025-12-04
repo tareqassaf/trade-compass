@@ -3,10 +3,14 @@ import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Target, DollarSign, Trophy, Activity, Scale, Gauge, AlertTriangle, Clock } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { useFilters } from "@/hooks/useFilters";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
+  const { filters, applyFilters, hasActiveFilters } = useFilters();
+
   const { data: stats, isLoading } = useQuery({
-    queryKey: ["dashboard-stats"],
+    queryKey: ["dashboard-stats", filters],
     queryFn: async () => {
       const { data: trades, error } = await supabase
         .from("trades")
@@ -15,7 +19,8 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      const closedTrades = trades || [];
+      const filteredTrades = applyFilters(trades || []);
+      const closedTrades = filteredTrades.filter(t => t.result !== "open");
       const winningTrades = closedTrades.filter(t => t.result === "win");
       const losingTrades = closedTrades.filter(t => t.result === "loss");
 
@@ -66,20 +71,21 @@ export default function Dashboard() {
   });
 
   const { data: equityData } = useQuery({
-    queryKey: ["equity-curve"],
+    queryKey: ["equity-curve", filters],
     queryFn: async () => {
       const { data: trades, error } = await supabase
         .from("trades")
-        .select("trading_day, pnl_amount, closed_at")
+        .select("*")
         .not("exit_price", "is", null)
         .order("closed_at", { ascending: true });
 
       if (error) throw error;
 
-      if (!trades || trades.length === 0) return { curve: [], maxDrawdown: 0, maxDrawdownDuration: 0 };
+      const filteredTrades = applyFilters(trades || []);
+      if (filteredTrades.length === 0) return { curve: [], maxDrawdown: 0, maxDrawdownDuration: 0 };
 
       // Group by trading day and calculate daily P&L
-      const dailyPnl = trades.reduce((acc, trade) => {
+      const dailyPnl = filteredTrades.reduce((acc, trade) => {
         const day = trade.trading_day;
         if (!acc[day]) {
           acc[day] = { date: day, dailyPnl: 0, trades: 0 };
@@ -221,11 +227,18 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Welcome back! Here's your trading performance overview.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Welcome back! Here's your trading performance overview.
+          </p>
+        </div>
+        {hasActiveFilters && (
+          <Badge variant="secondary" className="h-6">
+            Filtered Results
+          </Badge>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
