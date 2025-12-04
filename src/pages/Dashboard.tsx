@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Target, DollarSign, Trophy, Activity, Scale, Gauge } from "lucide-react";
+import { TrendingUp, TrendingDown, Target, DollarSign, Trophy, Activity, Scale, Gauge, AlertTriangle, Clock } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 export default function Dashboard() {
@@ -65,7 +65,7 @@ export default function Dashboard() {
     },
   });
 
-  const { data: equityCurve } = useQuery({
+  const { data: equityData } = useQuery({
     queryKey: ["equity-curve"],
     queryFn: async () => {
       const { data: trades, error } = await supabase
@@ -76,7 +76,7 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      if (!trades || trades.length === 0) return [];
+      if (!trades || trades.length === 0) return { curve: [], maxDrawdown: 0, maxDrawdownDuration: 0 };
 
       // Group by trading day and calculate daily P&L
       const dailyPnl = trades.reduce((acc, trade) => {
@@ -94,10 +94,41 @@ export default function Dashboard() {
         new Date(a.date).getTime() - new Date(b.date).getTime()
       );
 
-      // Calculate cumulative P&L
+      // Calculate cumulative P&L and drawdown metrics
       let cumulative = 0;
-      return sortedDays.map(day => {
+      let peak = 0;
+      let maxDrawdown = 0;
+      let maxDrawdownDuration = 0;
+      let currentDrawdownStart: number | null = null;
+
+      const curve = sortedDays.map((day, index) => {
         cumulative += day.dailyPnl;
+        
+        // Track peak and drawdown
+        if (cumulative > peak) {
+          peak = cumulative;
+          // Reset drawdown duration if we hit a new peak
+          if (currentDrawdownStart !== null) {
+            currentDrawdownStart = null;
+          }
+        }
+        
+        const currentDrawdown = peak - cumulative;
+        if (currentDrawdown > maxDrawdown) {
+          maxDrawdown = currentDrawdown;
+        }
+        
+        // Track drawdown duration (in trading days)
+        if (cumulative < peak) {
+          if (currentDrawdownStart === null) {
+            currentDrawdownStart = index;
+          }
+          const duration = index - currentDrawdownStart + 1;
+          if (duration > maxDrawdownDuration) {
+            maxDrawdownDuration = duration;
+          }
+        }
+        
         return {
           date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           fullDate: day.date,
@@ -107,8 +138,14 @@ export default function Dashboard() {
           isWinningDay: day.dailyPnl > 0,
         };
       });
+
+      return { curve, maxDrawdown, maxDrawdownDuration };
     },
   });
+
+  const equityCurve = equityData?.curve || [];
+  const maxDrawdown = equityData?.maxDrawdown || 0;
+  const maxDrawdownDuration = equityData?.maxDrawdownDuration || 0;
 
   if (isLoading) {
     return (
@@ -167,6 +204,18 @@ export default function Dashboard() {
       value: (stats?.sharpeRatio || 0).toFixed(2),
       icon: Gauge,
       gradient: (stats?.sharpeRatio || 0) >= 0 ? "bg-gradient-success" : "bg-gradient-danger",
+    },
+    {
+      title: "Max Drawdown",
+      value: `$${maxDrawdown.toFixed(2)}`,
+      icon: AlertTriangle,
+      gradient: maxDrawdown > 0 ? "bg-gradient-danger" : "bg-gradient-success",
+    },
+    {
+      title: "DD Duration",
+      value: `${maxDrawdownDuration} days`,
+      icon: Clock,
+      gradient: maxDrawdownDuration > 5 ? "bg-gradient-danger" : "bg-gradient-primary",
     },
   ];
 
