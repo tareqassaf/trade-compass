@@ -21,7 +21,8 @@ import {
   TrendingDown,
   Trophy,
   XCircle,
-  MinusCircle
+  MinusCircle,
+  Tag
 } from "lucide-react";
 import { useState } from "react";
 
@@ -68,17 +69,30 @@ export function GlobalFilters() {
     },
   });
 
+  const { data: tags } = useQuery({
+    queryKey: ["tags-filter"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tags")
+        .select("id, label, color")
+        .order("label");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const activeFilterCount = [
     filters.dateFrom || filters.dateTo,
     filters.instruments.length > 0,
     filters.strategies.length > 0,
     filters.sessions.length > 0,
+    filters.tags.length > 0,
     filters.side !== "all",
     filters.result !== "all",
     filters.minR !== null || filters.maxR !== null,
   ].filter(Boolean).length;
 
-  const toggleArrayFilter = (key: "instruments" | "strategies" | "sessions", value: string) => {
+  const toggleArrayFilter = (key: "instruments" | "strategies" | "sessions" | "tags", value: string) => {
     const current = filters[key];
     const updated = current.includes(value)
       ? current.filter((v) => v !== value)
@@ -307,6 +321,46 @@ export function GlobalFilters() {
                         className="text-sm cursor-pointer"
                       >
                         {session.name}
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Tags */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Tags
+              </Label>
+              <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                {tags?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No tags available</p>
+                ) : (
+                  tags?.map((tag) => (
+                    <div key={tag.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`tag-${tag.id}`}
+                        checked={filters.tags.includes(tag.id)}
+                        onCheckedChange={() => toggleArrayFilter("tags", tag.id)}
+                      />
+                      <label
+                        htmlFor={`tag-${tag.id}`}
+                        className="text-sm cursor-pointer flex items-center gap-2"
+                      >
+                        <Badge
+                          style={{
+                            backgroundColor: `${tag.color}20`,
+                            color: tag.color || undefined,
+                            borderColor: tag.color || undefined,
+                          }}
+                          className="border text-xs"
+                        >
+                          {tag.label}
+                        </Badge>
                       </label>
                     </div>
                   ))
