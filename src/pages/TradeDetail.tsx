@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -12,9 +12,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Edit2, Save, X, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowLeft, Edit2, Save, X, TrendingUp, TrendingDown, Tag } from "lucide-react";
 import { calculateAllMetrics } from "@/lib/tradeCalculations";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from "recharts";
+import { TagSelector } from "@/components/TagSelector";
 
 export default function TradeDetail() {
   const { id } = useParams();
@@ -24,6 +25,7 @@ export default function TradeDetail() {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const { data: trade, isLoading } = useQuery({
     queryKey: ["trade", id],
@@ -43,6 +45,26 @@ export default function TradeDetail() {
     },
     enabled: !!id,
   });
+
+  const { data: tradeTags } = useQuery({
+    queryKey: ["trade-tags", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trade_tags")
+        .select("tag_id, tags(id, label, color)")
+        .eq("trade_id", id!);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  // Sync selectedTagIds when tradeTags load
+  useEffect(() => {
+    if (tradeTags) {
+      setSelectedTagIds(tradeTags.map(tt => tt.tag_id));
+    }
+  }, [tradeTags]);
 
   const { data: averages } = useQuery({
     queryKey: ["trade-averages", user?.id],
@@ -98,9 +120,20 @@ export default function TradeDetail() {
         .eq("id", id);
 
       if (error) throw error;
+
+      // Update tags: delete existing and insert new
+      await supabase.from("trade_tags").delete().eq("trade_id", id!);
+      if (selectedTagIds.length > 0) {
+        const tradeTags = selectedTagIds.map(tagId => ({
+          trade_id: id!,
+          tag_id: tagId,
+        }));
+        await supabase.from("trade_tags").insert(tradeTags);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trade", id] });
+      queryClient.invalidateQueries({ queryKey: ["trade-tags", id] });
       queryClient.invalidateQueries({ queryKey: ["trades"] });
       setIsEditing(false);
       toast({ title: "Trade updated", description: "Changes saved successfully." });
@@ -489,6 +522,44 @@ export default function TradeDetail() {
                     </div>
                   )}
                 </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Tags */}
+          <Card className="border-border/50 shadow-card bg-gradient-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Tags
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditing ? (
+                <TagSelector
+                  selectedTagIds={selectedTagIds}
+                  onTagsChange={setSelectedTagIds}
+                />
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {tradeTags && tradeTags.length > 0 ? (
+                    tradeTags.map((tt: any) => (
+                      <Badge
+                        key={tt.tag_id}
+                        style={{
+                          backgroundColor: `${tt.tags?.color}20`,
+                          color: tt.tags?.color || undefined,
+                          borderColor: tt.tags?.color || undefined,
+                        }}
+                        className="border"
+                      >
+                        {tt.tags?.label}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No tags</p>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>

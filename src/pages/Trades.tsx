@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +39,39 @@ export default function Trades() {
     },
   });
 
+  // Fetch trade tags separately
+  const { data: tradeTags } = useQuery({
+    queryKey: ["all-trade-tags"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trade_tags")
+        .select("trade_id, tag_id, tags(id, label, color)");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Create a map of trade_id to tags
+  const tradeTagsMap = useMemo(() => {
+    if (!tradeTags) return {};
+    return tradeTags.reduce((acc, tt) => {
+      if (!acc[tt.trade_id]) acc[tt.trade_id] = [];
+      if (tt.tags) acc[tt.trade_id].push(tt.tags);
+      return acc;
+    }, {} as Record<string, Array<{ id: string; label: string; color: string | null }>>);
+  }, [tradeTags]);
+
+  // Apply tag filter if active
+  const filteredTrades = useMemo(() => {
+    if (!trades) return [];
+    if (filters.tags.length === 0) return trades;
+    
+    return trades.filter(trade => {
+      const tags = tradeTagsMap[trade.id] || [];
+      return filters.tags.some(tagId => tags.some(t => t.id === tagId));
+    });
+  }, [trades, filters.tags, tradeTagsMap]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -76,56 +109,77 @@ export default function Trades() {
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
-          ) : trades && trades.length > 0 ? (
+          ) : filteredTrades && filteredTrades.length > 0 ? (
             <div className="space-y-4">
-              {trades.map((trade) => (
-                <div
-                  key={trade.id}
-                  onClick={() => navigate(`/trades/${trade.id}`)}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:border-border transition-colors bg-card/50 cursor-pointer"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-lg ${
-                      trade.side === "long" ? "bg-success/20" : "bg-destructive/20"
-                    }`}>
-                      {trade.side === "long" ? (
-                        <TrendingUp className="h-5 w-5 text-success" />
-                      ) : (
-                        <TrendingDown className="h-5 w-5 text-destructive" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{trade.instrument?.symbol}</span>
-                        <Badge variant={trade.result === "win" ? "default" : trade.result === "loss" ? "destructive" : "secondary"}>
-                          {trade.result}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                        <span>{new Date(trade.opened_at).toLocaleDateString()}</span>
-                        {trade.strategy && (
-                          <>
-                            <span>•</span>
-                            <span>{trade.strategy.name}</span>
-                          </>
+              {filteredTrades.map((trade) => {
+                const tags = tradeTagsMap[trade.id] || [];
+                return (
+                  <div
+                    key={trade.id}
+                    onClick={() => navigate(`/trades/${trade.id}`)}
+                    className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:border-border transition-colors bg-card/50 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2 rounded-lg ${
+                        trade.side === "long" ? "bg-success/20" : "bg-destructive/20"
+                      }`}>
+                        {trade.side === "long" ? (
+                          <TrendingUp className="h-5 w-5 text-success" />
+                        ) : (
+                          <TrendingDown className="h-5 w-5 text-destructive" />
                         )}
                       </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-lg font-bold ${
-                      (trade.pnl_amount || 0) >= 0 ? "text-success" : "text-destructive"
-                    }`}>
-                      ${(trade.pnl_amount || 0).toFixed(2)}
-                    </div>
-                    {trade.r_multiple !== null && (
-                      <div className="text-sm text-muted-foreground">
-                        {trade.r_multiple.toFixed(2)}R
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold">{trade.instrument?.symbol}</span>
+                          <Badge variant={trade.result === "win" ? "default" : trade.result === "loss" ? "destructive" : "secondary"}>
+                            {trade.result}
+                          </Badge>
+                          {tags.slice(0, 3).map((tag) => (
+                            <Badge
+                              key={tag.id}
+                              style={{
+                                backgroundColor: `${tag.color}20`,
+                                color: tag.color || undefined,
+                                borderColor: tag.color || undefined,
+                              }}
+                              className="border text-xs"
+                            >
+                              {tag.label}
+                            </Badge>
+                          ))}
+                          {tags.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{tags.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                          <span>{new Date(trade.opened_at).toLocaleDateString()}</span>
+                          {trade.strategy && (
+                            <>
+                              <span>•</span>
+                              <span>{trade.strategy.name}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-lg font-bold ${
+                        (trade.pnl_amount || 0) >= 0 ? "text-success" : "text-destructive"
+                      }`}>
+                        ${(trade.pnl_amount || 0).toFixed(2)}
+                      </div>
+                      {trade.r_multiple !== null && (
+                        <div className="text-sm text-muted-foreground">
+                          {trade.r_multiple.toFixed(2)}R
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12">

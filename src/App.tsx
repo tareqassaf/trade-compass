@@ -17,6 +17,7 @@ import Journal from "./pages/Journal";
 import Sessions from "./pages/Sessions";
 import Strategies from "./pages/Strategies";
 import Instruments from "./pages/Instruments";
+import Tags from "./pages/Tags";
 import TradeCalendar from "./pages/TradeCalendar";
 import PerformanceSummary from "./pages/PerformanceSummary";
 import Settings from "./pages/Settings";
@@ -129,6 +130,16 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Instruments />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tags"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Tags />
                   </Layout>
                 </ProtectedRoute>
               }

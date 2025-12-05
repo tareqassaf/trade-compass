@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, ArrowRight, Save } from "lucide-react";
 import { calculateAllMetrics } from "@/lib/tradeCalculations";
+import { TagSelector } from "@/components/TagSelector";
 
 type Step = "basic" | "risk" | "result";
 
@@ -22,6 +23,7 @@ export default function AddTrade() {
   const queryClient = useQueryClient();
   
   const [currentStep, setCurrentStep] = useState<Step>("basic");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -161,6 +163,16 @@ export default function AddTrade() {
         .single();
 
       if (error) throw error;
+
+      // Insert trade tags if any selected
+      if (selectedTagIds.length > 0 && data) {
+        const tradeTags = selectedTagIds.map(tagId => ({
+          trade_id: data.id,
+          tag_id: tagId,
+        }));
+        await supabase.from("trade_tags").insert(tradeTags);
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -347,6 +359,14 @@ export default function AddTrade() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tags</Label>
+                  <TagSelector
+                    selectedTagIds={selectedTagIds}
+                    onTagsChange={setSelectedTagIds}
+                  />
                 </div>
               </div>
             )}

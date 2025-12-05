@@ -8,6 +8,7 @@ export interface FilterState {
   instruments: string[];
   strategies: string[];
   sessions: string[];
+  tags: string[];
   side: "all" | "long" | "short";
   result: "all" | "win" | "loss" | "breakeven";
   minR: number | null;
@@ -20,6 +21,7 @@ const defaultFilters: FilterState = {
   instruments: [],
   strategies: [],
   sessions: [],
+  tags: [],
   side: "all",
   result: "all",
   minR: null,
@@ -36,6 +38,7 @@ export function useFilters() {
       instruments: searchParams.get("instruments")?.split(",").filter(Boolean) || [],
       strategies: searchParams.get("strategies")?.split(",").filter(Boolean) || [],
       sessions: searchParams.get("sessions")?.split(",").filter(Boolean) || [],
+      tags: searchParams.get("tags")?.split(",").filter(Boolean) || [],
       side: (searchParams.get("side") as FilterState["side"]) || "all",
       result: (searchParams.get("result") as FilterState["result"]) || "all",
       minR: searchParams.get("minR") ? parseFloat(searchParams.get("minR")!) : null,
@@ -72,6 +75,7 @@ export function useFilters() {
       filters.instruments.length > 0 ||
       filters.strategies.length > 0 ||
       filters.sessions.length > 0 ||
+      filters.tags.length > 0 ||
       filters.side !== "all" ||
       filters.result !== "all" ||
       filters.minR !== null ||
