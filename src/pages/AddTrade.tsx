@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, ArrowRight, Save } from "lucide-react";
 import { calculateAllMetrics } from "@/lib/tradeCalculations";
 import { TagSelector } from "@/components/TagSelector";
+import { ScreenshotUpload } from "@/components/ScreenshotUpload";
 
 type Step = "basic" | "risk" | "result";
 
@@ -24,6 +25,7 @@ export default function AddTrade() {
   
   const [currentStep, setCurrentStep] = useState<Step>("basic");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -154,6 +156,7 @@ export default function AddTrade() {
         execution_errors: formData.executionErrors || null,
         pre_trade_plan: formData.preTradePlan || null,
         post_trade_review: formData.postTradeReview || null,
+        screenshot_url: screenshotUrl,
       };
 
       const { data, error } = await supabase
@@ -588,6 +591,11 @@ export default function AddTrade() {
                     rows={3}
                   />
                 </div>
+
+                <ScreenshotUpload
+                  screenshotUrl={screenshotUrl}
+                  onUpload={setScreenshotUrl}
+                />
               </div>
             )}
 
