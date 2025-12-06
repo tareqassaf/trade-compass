@@ -16,6 +16,8 @@ import { ArrowLeft, Edit2, Save, X, TrendingUp, TrendingDown, Tag } from "lucide
 import { calculateAllMetrics } from "@/lib/tradeCalculations";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from "recharts";
 import { TagSelector } from "@/components/TagSelector";
+import { ScreenshotUpload } from "@/components/ScreenshotUpload";
+import { Image as ImageIcon } from "lucide-react";
 
 export default function TradeDetail() {
   const { id } = useParams();
@@ -26,6 +28,7 @@ export default function TradeDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
 
   const { data: trade, isLoading } = useQuery({
     queryKey: ["trade", id],
@@ -45,6 +48,13 @@ export default function TradeDetail() {
     },
     enabled: !!id,
   });
+
+  // Sync screenshot URL when trade loads
+  useEffect(() => {
+    if (trade) {
+      setScreenshotUrl(trade.screenshot_url);
+    }
+  }, [trade]);
 
   const { data: tradeTags } = useQuery({
     queryKey: ["trade-tags", id],
@@ -116,6 +126,7 @@ export default function TradeDetail() {
           pnl_amount: metrics.pnlAmount,
           r_multiple: metrics.rMultiple,
           result: metrics.result,
+          screenshot_url: screenshotUrl,
         })
         .eq("id", id);
 
@@ -362,6 +373,38 @@ export default function TradeDetail() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Screenshot */}
+          {(trade.screenshot_url || isEditing) && (
+            <Card className="border-border/50 shadow-card bg-gradient-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  Chart Screenshot
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isEditing ? (
+                  <ScreenshotUpload
+                    screenshotUrl={screenshotUrl}
+                    onUpload={setScreenshotUrl}
+                  />
+                ) : trade.screenshot_url ? (
+                  <a
+                    href={trade.screenshot_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <img
+                      src={trade.screenshot_url}
+                      alt="Trade chart screenshot"
+                      className="w-full rounded-lg border border-border hover:opacity-90 transition-opacity cursor-pointer"
+                    />
+                  </a>
+                ) : null}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Trade Notes */}
           {(trade.notes || trade.pre_trade_plan || trade.post_trade_review || isEditing) && (
