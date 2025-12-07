@@ -42,14 +42,22 @@ export default function Journal() {
   const { data: entry, isLoading } = useQuery({
     queryKey: ["journal-entry", tradingDay],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .select("*")
-        .eq("trading_day", tradingDay)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from("journal_entries")
+          .select("*")
+          .eq("trading_day", tradingDay)
+          .maybeSingle();
 
-      if (error) throw error;
-      return data;
+        if (error) {
+          console.warn("Supabase query error (migrating to Firebase):", error);
+          return null;
+        }
+        return data;
+      } catch (error) {
+        console.warn("Error fetching journal entry (migrating to Firebase):", error);
+        return null;
+      }
     },
     enabled: !!user,
   });
@@ -58,12 +66,20 @@ export default function Journal() {
   const { data: journalDates } = useQuery({
     queryKey: ["journal-dates"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .select("trading_day");
+      try {
+        const { data, error } = await supabase
+          .from("journal_entries")
+          .select("trading_day");
 
-      if (error) throw error;
-      return data.map(d => new Date(d.trading_day));
+        if (error) {
+          console.warn("Supabase query error (migrating to Firebase):", error);
+          return [];
+        }
+        return (data || []).map(d => new Date(d.trading_day));
+      } catch (error) {
+        console.warn("Error fetching journal dates (migrating to Firebase):", error);
+        return [];
+      }
     },
     enabled: !!user,
   });
@@ -74,29 +90,40 @@ export default function Journal() {
       if (!user) throw new Error("Not authenticated");
       if (!text.trim()) throw new Error("Journal entry cannot be empty");
 
-      if (entry) {
-        // Update existing
-        const { error } = await supabase
-          .from("journal_entries")
-          .update({
-            text: text.trim(),
-            mood: mood || null,
-          })
-          .eq("id", entry.id);
+      try {
+        if (entry) {
+          // Update existing
+          const { error } = await supabase
+            .from("journal_entries")
+            .update({
+              text: text.trim(),
+              mood: mood || null,
+            })
+            .eq("id", entry.id);
 
-        if (error) throw error;
-      } else {
-        // Create new
-        const { error } = await supabase
-          .from("journal_entries")
-          .insert({
-            user_id: user.id,
-            trading_day: tradingDay,
-            text: text.trim(),
-            mood: mood || null,
-          });
+          if (error) {
+            console.warn("Supabase update error (migrating to Firebase):", error);
+            throw new Error("Failed to update journal entry. Please migrate to Firebase.");
+          }
+        } else {
+          // Create new
+          const { error } = await supabase
+            .from("journal_entries")
+            .insert({
+              user_id: (user as any)?.uid || (user as any)?.id,
+              trading_day: tradingDay,
+              text: text.trim(),
+              mood: mood || null,
+            });
 
-        if (error) throw error;
+          if (error) {
+            console.warn("Supabase insert error (migrating to Firebase):", error);
+            throw new Error("Failed to create journal entry. Please migrate to Firebase.");
+          }
+        }
+      } catch (error: any) {
+        console.warn("Error saving journal entry (migrating to Firebase):", error);
+        throw error;
       }
     },
     onSuccess: () => {
@@ -122,12 +149,20 @@ export default function Journal() {
     mutationFn: async () => {
       if (!entry) throw new Error("No entry to delete");
 
-      const { error } = await supabase
-        .from("journal_entries")
-        .delete()
-        .eq("id", entry.id);
+      try {
+        const { error } = await supabase
+          .from("journal_entries")
+          .delete()
+          .eq("id", entry.id);
 
-      if (error) throw error;
+        if (error) {
+          console.warn("Supabase delete error (migrating to Firebase):", error);
+          throw new Error("Failed to delete journal entry. Please migrate to Firebase.");
+        }
+      } catch (error: any) {
+        console.warn("Error deleting journal entry (migrating to Firebase):", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["journal-entry", tradingDay] });

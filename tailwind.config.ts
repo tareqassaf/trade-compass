@@ -105,10 +105,41 @@ export default {
             height: "0",
           },
         },
+        "pulse-slow": {
+          "0%, 100%": {
+            opacity: "1",
+          },
+          "50%": {
+            opacity: "0.85",
+          },
+        },
+        scanlineSweep: {
+          "0%": { transform: "translateY(-100%)" },
+          "100%": { transform: "translateY(100%)" },
+        },
+        crtLines: {
+          "0%": { backgroundPosition: "0 0" },
+          "100%": { backgroundPosition: "0 4px" },
+        },
+        hudFlicker: {
+          "0%": { opacity: "0.7" },
+          "50%": { opacity: "1" },
+          "100%": { opacity: "0.8" },
+        },
+        iconDrift: {
+          "0%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(1px)" },
+          "100%": { transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-slow": "pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "scanline-sweep": "scanlineSweep 6s linear infinite",
+        "crt-lines": "crtLines 1s steps(60) infinite",
+        "hud-flicker": "hudFlicker 2.5s ease-in-out infinite alternate",
+        "icon-drift": "iconDrift 4s ease-in-out infinite",
       },
     },
   },

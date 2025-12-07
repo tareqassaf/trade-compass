@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection - users can only read/write their own user document
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Trades subcollection - users can only access their own trades
+      match /trades/{tradeId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Daily stats subcollection - users can only access their own daily stats
+      match /dailyStats/{statId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Playbooks subcollection - users can only access their own playbooks
+      match /playbooks/{playbookId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Daily journal subcollection - users can only access their own journal entries
+      match /dailyJournal/{journalId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Settings subcollection - users can only access their own settings
+      match /settings/{settingsId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+  }
+}
+

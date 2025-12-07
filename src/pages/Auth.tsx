@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { signUp, signIn } from "@/lib/supabase";
+import { signUp, signIn } from "@/lib/firebaseAuth";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { TrendingUp, LineChart } from "lucide-react";
@@ -33,7 +33,7 @@ export default function Auth() {
     if (error) {
       toast({
         title: "Sign up failed",
-        description: error.message,
+        description: error.message || "Failed to create account. Please try again.",
         variant: "destructive",
       });
     } else {
@@ -56,7 +56,7 @@ export default function Auth() {
     if (error) {
       toast({
         title: "Sign in failed",
-        description: error.message,
+        description: error.message || "Invalid email or password. Please try again.",
         variant: "destructive",
       });
     } else {

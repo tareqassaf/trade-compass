@@ -15,6 +15,8 @@ import ImportTrades from "./pages/ImportTrades";
 import Reports from "./pages/Reports";
 import Journal from "./pages/Journal";
 import Settings from "./pages/Settings";
+import TradingCalendarPage from "./pages/TradingCalendarPage";
+import Playbooks from "./pages/Playbooks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,7 +26,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
@@ -99,11 +101,31 @@ const App = () => (
               }
             />
             <Route
+              path="/calendar"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <TradingCalendarPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/settings"
               element={
                 <ProtectedRoute>
                   <Layout>
                     <Settings />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/playbooks"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Playbooks />
                   </Layout>
                 </ProtectedRoute>
               }

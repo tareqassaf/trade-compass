@@ -1,4 +1,4 @@
-import { LayoutDashboard, TrendingUp, FileText, Settings, LogOut, Upload, BookOpen } from "lucide-react";
+import { LayoutDashboard, TrendingUp, FileText, Settings, LogOut, Upload, BookOpen, Calendar, FlaskConical } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -39,6 +39,16 @@ const menuItems = [
     title: "Journal",
     icon: BookOpen,
     url: "/journal",
+  },
+  {
+    title: "Calendar",
+    icon: Calendar,
+    url: "/calendar",
+  },
+  {
+    title: "Strategy Lab",
+    icon: FlaskConical,
+    url: "/playbooks",
   },
   {
     title: "Settings",

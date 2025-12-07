@@ -1,499 +1,406 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { useNavigate } from "react-router-dom";
+import { Timestamp } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import * as XLSX from "xlsx";
-import Papa from "papaparse";
-import { calculateAllMetrics } from "@/lib/tradeCalculations";
 import { useAuth } from "@/contexts/AuthContext";
-
-type ParsedRow = Record<string, any>;
-
-const FIELD_MAPPINGS = [
-  { key: "trading_day", label: "Trading Day", required: true },
-  { key: "opened_at", label: "Opened At", required: true },
-  { key: "symbol", label: "Instrument Symbol", required: true },
-  { key: "side", label: "Side (long/short)", required: true },
-  { key: "order_type", label: "Order Type", required: true },
-  { key: "size_lots", label: "Size (Lots)", required: true },
-  { key: "entry_price", label: "Entry Price", required: true },
-  { key: "stop_loss_price", label: "Stop Loss Price", required: true },
-  { key: "exit_price", label: "Exit Price", required: false },
-  { key: "closed_at", label: "Closed At", required: false },
-  { key: "tp1_price", label: "TP1 Price", required: false },
-  { key: "tp2_price", label: "TP2 Price", required: false },
-  { key: "tp3_price", label: "TP3 Price", required: false },
-  { key: "strategy", label: "Strategy Name", required: false },
-  { key: "session", label: "Session Name", required: false },
-  { key: "account_type", label: "Account Type", required: false },
-  { key: "risk_percent", label: "Risk %", required: false },
-  { key: "notes", label: "Notes", required: false },
-];
+import { parseMt5PositionsFromFile, type Mt5PositionRow } from "@/lib/mt5Import";
+import { importMt5Trades, type ImportMt5Result } from "@/lib/firestoreService";
+import { mapNormalizedMt5RowToTrade } from "@/lib/mt5ImportMapper";
+import type { Trade } from "@/types/trading";
 
 export default function ImportTrades() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
-  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
-  const [step, setStep] = useState<"upload" | "map" | "preview" | "complete">("upload");
-  const [importResults, setImportResults] = useState<{ success: number; failed: number; errors: string[] }>({
-    success: 0,
-    failed: 0,
-    errors: [],
-  });
+  const userId = (user as any)?.uid || null;
 
-  const { data: instruments } = useQuery({
-    queryKey: ["instruments"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("instruments").select("*");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const [accountId, setAccountId] = useState<string>("");
+  const [isParsing, setIsParsing] = useState(false);
+  const [parsedPositions, setParsedPositions] = useState<Mt5PositionRow[]>([]);
+  const [mappedTrades, setMappedTrades] = useState<Trade[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [importSummary, setImportSummary] = useState<ImportMt5Result | null>(null);
 
-  const { data: strategies } = useQuery({
-    queryKey: ["strategies"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("strategies").select("*");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  const { data: sessions } = useQuery({
-    queryKey: ["sessions"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("sessions").select("*");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = e.target.files?.[0];
-    if (!uploadedFile) return;
-
-    setFile(uploadedFile);
-    const fileExtension = uploadedFile.name.split(".").pop()?.toLowerCase();
-
-    try {
-      if (fileExtension === "csv") {
-        Papa.parse(uploadedFile, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            setParsedData(results.data as ParsedRow[]);
-            autoMapColumns(Object.keys((results.data as ParsedRow[])[0] || {}));
-            setStep("map");
-          },
-          error: (error) => {
-            toast({
-              title: "Parse Error",
-              description: error.message,
-              variant: "destructive",
-            });
-          },
-        });
-      } else if (fileExtension === "xlsx" || fileExtension === "xls") {
-        const data = await uploadedFile.arrayBuffer();
-        const workbook = XLSX.read(data);
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet) as ParsedRow[];
-        setParsedData(jsonData);
-        autoMapColumns(Object.keys(jsonData[0] || {}));
-        setStep("map");
-      } else {
-        toast({
-          title: "Invalid File",
-          description: "Please upload a CSV or XLSX file",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to parse file",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const autoMapColumns = (fileColumns: string[]) => {
-    const mapping: Record<string, string> = {};
-    
-    fileColumns.forEach((col) => {
-      const normalized = col.toLowerCase().replace(/[_\s]/g, "");
-      
-      if (normalized.includes("date") || normalized.includes("day")) mapping["trading_day"] = col;
-      if (normalized.includes("opened") || normalized.includes("opentime")) mapping["opened_at"] = col;
-      if (normalized.includes("symbol") || normalized.includes("instrument")) mapping["symbol"] = col;
-      if (normalized.includes("side") || normalized.includes("direction")) mapping["side"] = col;
-      if (normalized.includes("ordertype") || normalized.includes("type")) mapping["order_type"] = col;
-      if (normalized.includes("size") || normalized.includes("lots") || normalized.includes("volume")) mapping["size_lots"] = col;
-      if (normalized.includes("entry") || normalized.includes("open")) mapping["entry_price"] = col;
-      if (normalized.includes("stoploss") || normalized.includes("sl")) mapping["stop_loss_price"] = col;
-      if (normalized.includes("exit") || normalized.includes("close")) mapping["exit_price"] = col;
-      if (normalized.includes("closed") || normalized.includes("closetime")) mapping["closed_at"] = col;
-      if (normalized.includes("tp1")) mapping["tp1_price"] = col;
-      if (normalized.includes("tp2")) mapping["tp2_price"] = col;
-      if (normalized.includes("tp3")) mapping["tp3_price"] = col;
-      if (normalized.includes("strategy")) mapping["strategy"] = col;
-      if (normalized.includes("session")) mapping["session"] = col;
-      if (normalized.includes("account")) mapping["account_type"] = col;
-      if (normalized.includes("risk")) mapping["risk_percent"] = col;
-      if (normalized.includes("note")) mapping["notes"] = col;
-    });
-
-    setColumnMapping(mapping);
-  };
-
-  const importMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) throw new Error("Not authenticated");
-
-      const results = { success: 0, failed: 0, errors: [] as string[] };
-      
-      for (let i = 0; i < parsedData.length; i++) {
-        try {
-          const row = parsedData[i];
-          const mappedData: Record<string, any> = {};
-
-          // Map columns
-          Object.entries(columnMapping).forEach(([key, fileColumn]) => {
-            if (fileColumn && row[fileColumn] !== undefined && row[fileColumn] !== "") {
-              mappedData[key] = row[fileColumn];
-            }
-          });
-
-          // Find instrument by symbol
-          const instrument = instruments?.find(
-            (i) => i.symbol.toLowerCase() === mappedData.symbol?.toLowerCase()
-          );
-          if (!instrument) {
-            results.errors.push(`Row ${i + 1}: Instrument ${mappedData.symbol} not found`);
-            results.failed++;
-            continue;
-          }
-
-          // Find strategy by name (if provided)
-          let strategyId = null;
-          if (mappedData.strategy) {
-            const strategy = strategies?.find(
-              (s) => s.name.toLowerCase() === mappedData.strategy.toLowerCase()
-            );
-            strategyId = strategy?.id || null;
-          }
-
-          // Find session by name (if provided)
-          let sessionId = null;
-          if (mappedData.session) {
-            const session = sessions?.find(
-              (s) => s.name.toLowerCase() === mappedData.session.toLowerCase()
-            );
-            sessionId = session?.id || null;
-          }
-
-          // Prepare trade data
-          const entryPrice = parseFloat(mappedData.entry_price);
-          const stopLossPrice = parseFloat(mappedData.stop_loss_price);
-          const exitPrice = mappedData.exit_price ? parseFloat(mappedData.exit_price) : null;
-          const sizeLots = parseFloat(mappedData.size_lots);
-          const side = mappedData.side?.toLowerCase() === "long" ? "long" : "short";
-
-          // Calculate metrics
-          const metrics = calculateAllMetrics({
-            side,
-            entryPrice,
-            stopLossPrice,
-            exitPrice,
-            tp1Price: mappedData.tp1_price ? parseFloat(mappedData.tp1_price) : undefined,
-            tp2Price: mappedData.tp2_price ? parseFloat(mappedData.tp2_price) : undefined,
-            tp3Price: mappedData.tp3_price ? parseFloat(mappedData.tp3_price) : undefined,
-            sizeLots,
-          });
-
-          // Insert trade
-          const { error } = await supabase.from("trades").insert({
-            user_id: user.id,
-            trading_day: mappedData.trading_day,
-            opened_at: mappedData.opened_at,
-            closed_at: mappedData.closed_at || null,
-            instrument_id: instrument.id,
-            strategy_id: strategyId,
-            session_id: sessionId,
-            side,
-            order_type: mappedData.order_type?.toLowerCase() || "market",
-            size_lots: sizeLots,
-            entry_price: entryPrice,
-            stop_loss_price: stopLossPrice,
-            exit_price: exitPrice,
-            tp1_price: mappedData.tp1_price ? parseFloat(mappedData.tp1_price) : null,
-            tp2_price: mappedData.tp2_price ? parseFloat(mappedData.tp2_price) : null,
-            tp3_price: mappedData.tp3_price ? parseFloat(mappedData.tp3_price) : null,
-            account_type: mappedData.account_type?.toLowerCase() || "demo",
-            risk_percent: mappedData.risk_percent ? parseFloat(mappedData.risk_percent) : null,
-            notes: mappedData.notes || null,
-            ...metrics,
-          });
-
-          if (error) {
-            results.errors.push(`Row ${i + 1}: ${error.message}`);
-            results.failed++;
-          } else {
-            results.success++;
-          }
-        } catch (error) {
-          results.errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
-          results.failed++;
-        }
-      }
-
-      return results;
-    },
-    onSuccess: (results) => {
-      setImportResults(results);
-      setStep("complete");
-      toast({
-        title: "Import Complete",
-        description: `${results.success} trades imported successfully${results.failed > 0 ? `, ${results.failed} failed` : ""}`,
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Import Failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleImport = () => {
-    const requiredFields = FIELD_MAPPINGS.filter((f) => f.required);
-    const missingFields = requiredFields.filter((f) => !columnMapping[f.key]);
-
-    if (missingFields.length > 0) {
-      toast({
-        title: "Missing Required Fields",
-        description: `Please map: ${missingFields.map((f) => f.label).join(", ")}`,
-        variant: "destructive",
-      });
+    if (!userId) {
+      setError("Please sign in to import trades.");
       return;
     }
 
-    setStep("preview");
+    if (!accountId) {
+      setError("Please select an account first.");
+      return;
+    }
+
+    setIsParsing(true);
+    setError(null);
+    setImportSummary(null);
+    setParsedPositions([]);
+    setMappedTrades([]);
+
+    try {
+      const positions = await parseMt5PositionsFromFile(file);
+      setParsedPositions(positions);
+
+      // Map MT5 positions to Trade objects using the new mapper
+      const trades = positions.map((pos) =>
+        mapNormalizedMt5RowToTrade(pos, {
+          userId: userId!,
+          accountId,
+        })
+      );
+      setMappedTrades(trades);
+
+            toast({
+        title: "File parsed successfully",
+        description: `Found ${positions.length} positions in the MT5 report.`,
+      });
+    } catch (err: any) {
+      console.error("[ImportTrades] Failed to parse MT5 report", err);
+      const errorMessage = err.message ?? "Failed to parse MT5 report";
+      setError(errorMessage);
+      toast({
+        title: "Parse error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsParsing(false);
+    }
   };
 
-  const confirmImport = () => {
-    importMutation.mutate();
+  const handleImport = async () => {
+    if (!userId || !accountId || mappedTrades.length === 0) {
+      setError("You must be logged in and have an account selected.");
+      return;
+    }
+
+    setImporting(true);
+    setError(null);
+
+    try {
+      const result = await importMt5Trades(mappedTrades, {
+        userId,
+        accountId,
+      });
+
+      setImportSummary(result);
+
+      if (result.imported > 0) {
+      toast({
+        title: "Import complete",
+          description: `Successfully imported ${result.imported} trade${result.imported !== 1 ? "s" : ""}. ${
+            result.skippedDuplicates > 0 ? `${result.skippedDuplicates} duplicate${result.skippedDuplicates !== 1 ? "s" : ""} skipped. ` : ""
+          }${result.failed > 0 ? `${result.failed} failed.` : ""}`,
+        });
+      } else if (result.skippedDuplicates > 0) {
+        toast({
+          title: "All trades already imported",
+          description: `${result.skippedDuplicates} trade${result.skippedDuplicates !== 1 ? "s" : ""} were skipped as duplicates.`,
+      });
+    } else {
+      toast({
+        title: "Import failed",
+        description: "No trades were imported. Please check the errors.",
+        variant: "destructive",
+      });
+    }
+    } catch (err: any) {
+      console.error("[ImportTrades] Failed to import MT5 trades", err);
+      setError(err.message || "Failed to import MT5 trades. Please try again.");
+      toast({
+        title: "Import error",
+        description: err.message || "Failed to import MT5 trades. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+    setImporting(false);
+    }
   };
 
-  const reset = () => {
-    setFile(null);
-    setParsedData([]);
-    setColumnMapping({});
-    setStep("upload");
-    setImportResults({ success: 0, failed: 0, errors: [] });
-  };
+  if (!userId) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-lg text-muted-foreground">Please sign in to import trades.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/trades")}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
       <div>
-        <h1 className="text-3xl font-bold">Import Trades</h1>
+          <h1 className="text-3xl font-bold">Import MT5 Trades</h1>
         <p className="text-muted-foreground mt-1">
-          Import trades from CSV or XLSX files
+            Upload a MetaTrader 5 Trade History Report (.xlsx or .csv)
         </p>
+        </div>
       </div>
 
-      {step === "upload" && (
-        <Card className="border-border/50 shadow-card bg-gradient-card">
+      {/* Account Selection */}
+      <Card className="border-border/50 shadow-lg bg-slate-800">
+        <CardHeader>
+          <CardTitle>Account Selection</CardTitle>
+          <CardDescription>Select the account to associate imported trades with</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label htmlFor="accountId">Account ID</Label>
+            <Input
+              id="accountId"
+              placeholder="e.g., MT5-12345678 or Account-1"
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter a unique identifier for this trading account (e.g., your MT5 account number)
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* File Upload */}
+      <Card className="border-border/50 shadow-lg bg-slate-800">
           <CardHeader>
-            <CardTitle>Upload File</CardTitle>
+          <CardTitle>Upload MT5 Report</CardTitle>
             <CardDescription>
-              Upload a CSV or XLSX file containing your trade data
+            Select a MetaTrader 5 Trade History Report file (.xlsx or .csv)
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-center w-full">
-              <Label
-                htmlFor="file-upload"
-                className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-background/50 hover:bg-background/80 transition-colors border-border/50"
-              >
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Upload className="w-12 h-12 mb-3 text-muted-foreground" />
-                  <p className="mb-2 text-sm text-muted-foreground">
-                    <span className="font-semibold">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-muted-foreground">CSV or XLSX files</p>
-                </div>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
                 <Input
-                  id="file-upload"
                   type="file"
-                  className="hidden"
-                  accept=".csv,.xlsx,.xls"
-                  onChange={handleFileUpload}
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileChange}
+                  disabled={isParsing || !accountId}
+                  className="cursor-pointer"
                 />
-              </Label>
+              </div>
+              {isParsing && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Parsing file...</span>
+                </div>
+              )}
             </div>
 
-            {file && (
+            {!accountId && (
               <Alert>
-                <FileSpreadsheet className="h-4 w-4" />
-                <AlertDescription>
-                  {file.name} ({parsedData.length} rows)
-                </AlertDescription>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>Please enter an Account ID before uploading a file.</AlertDescription>
               </Alert>
             )}
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
           </CardContent>
         </Card>
-      )}
 
-      {step === "map" && (
-        <Card className="border-border/50 shadow-card bg-gradient-card">
+      {/* Parsed Summary */}
+      {parsedPositions.length > 0 && (
+        <>
+          <Card className="border-border/50 shadow-lg bg-slate-800">
           <CardHeader>
-            <CardTitle>Map Columns</CardTitle>
+              <CardTitle>Parsed Positions</CardTitle>
             <CardDescription>
-              Map your file columns to trade fields. Required fields are marked with *
+                Detected MT5 Positions report: {parsedPositions.length} trade{parsedPositions.length !== 1 ? "s" : ""} ready to import
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {FIELD_MAPPINGS.map((field) => (
-              <div key={field.key} className="grid grid-cols-2 gap-4 items-center">
-                <Label>
-                  {field.label} {field.required && <span className="text-destructive">*</span>}
-                </Label>
-                <Select
-                  value={columnMapping[field.key] || ""}
-                  onValueChange={(value) =>
-                    setColumnMapping((prev) => ({ ...prev, [field.key]: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select column" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {Object.keys(parsedData[0] || {}).map((col) => (
-                      <SelectItem key={col} value={col}>
-                        {col}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
-
-            <div className="flex justify-between pt-4">
-              <Button variant="outline" onClick={reset}>
-                Cancel
-              </Button>
-              <Button onClick={handleImport} className="bg-gradient-primary hover:opacity-90">
-                Preview Import
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Ready to import {mappedTrades.length} trade{mappedTrades.length !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleImport}
+                    disabled={importing || mappedTrades.length === 0}
+                    className="bg-gradient-primary hover:opacity-90"
+                  >
+                    {importing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Import {mappedTrades.length} Trade{mappedTrades.length !== 1 ? "s" : ""}
+                      </>
+                    )}
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {step === "preview" && (
-        <Card className="border-border/50 shadow-card bg-gradient-card">
-          <CardHeader>
-            <CardTitle>Preview Import</CardTitle>
-            <CardDescription>
-              Review the first 5 rows before importing {parsedData.length} trades
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg border border-border/50 overflow-auto">
+                {/* Preview Table */}
+                <div className="border border-slate-700 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
+                        <TableRow className="bg-slate-700/50">
                     <TableHead>Symbol</TableHead>
-                    <TableHead>Side</TableHead>
-                    <TableHead>Entry</TableHead>
-                    <TableHead>SL</TableHead>
-                    <TableHead>Exit</TableHead>
+                          <TableHead>Side</TableHead>
+                          <TableHead>Open</TableHead>
+                          <TableHead>Close</TableHead>
+                          <TableHead className="text-right">Volume</TableHead>
+                          <TableHead className="text-right">Entry</TableHead>
+                          <TableHead className="text-right">Exit</TableHead>
+                          <TableHead className="text-right">Profit</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {parsedData.slice(0, 5).map((row, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{row[columnMapping.trading_day || ""]}</TableCell>
-                      <TableCell>{row[columnMapping.symbol || ""]}</TableCell>
-                      <TableCell>{row[columnMapping.side || ""]}</TableCell>
-                      <TableCell>{row[columnMapping.entry_price || ""]}</TableCell>
-                      <TableCell>{row[columnMapping.stop_loss_price || ""]}</TableCell>
-                      <TableCell>{row[columnMapping.exit_price || ""] || "-"}</TableCell>
+                        {parsedPositions.slice(0, 20).map((position, index) => {
+                          const trade = mappedTrades[index];
+                          
+                          // Format open time
+                          let openTime: string;
+                          if (trade?.openTime instanceof Timestamp) {
+                            openTime = trade.openTime.toDate().toLocaleString();
+                          } else if (trade?.openTime instanceof Date) {
+                            openTime = trade.openTime.toLocaleString();
+                          } else if (typeof trade?.openTime === 'string') {
+                            openTime = new Date(trade.openTime).toLocaleString();
+                          } else {
+                            openTime = position.openTime;
+                          }
+                          
+                          // Format close time
+                          let closeTime: string;
+                          if (trade?.closeTime instanceof Timestamp) {
+                            closeTime = trade.closeTime.toDate().toLocaleString();
+                          } else if (trade?.closeTime instanceof Date) {
+                            closeTime = trade.closeTime.toLocaleString();
+                          } else if (typeof trade?.closeTime === 'string') {
+                            closeTime = new Date(trade.closeTime).toLocaleString();
+                          } else {
+                            closeTime = position.closeTime;
+                          }
+                          
+                          return (
+                            <TableRow key={index} className="hover:bg-slate-700/30">
+                              <TableCell className="font-medium">{position.symbol}</TableCell>
+                              <TableCell>
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  position.type === "buy" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                                }`}>
+                                  {position.type.toUpperCase()}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{openTime}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{closeTime}</TableCell>
+                              <TableCell className="text-right">{position.volume.toFixed(2)}</TableCell>
+                              <TableCell className="text-right">{position.entryPrice.toFixed(5)}</TableCell>
+                              <TableCell className="text-right">{position.closePrice.toFixed(5)}</TableCell>
+                              <TableCell className={`text-right font-semibold ${
+                                position.profit > 0 ? "text-green-400" : position.profit < 0 ? "text-red-400" : "text-muted-foreground"
+                              }`}>
+                                ${position.profit.toFixed(2)}
+                              </TableCell>
                     </TableRow>
-                  ))}
+                          );
+                        })}
                 </TableBody>
               </Table>
             </div>
-
-            <div className="flex justify-between pt-4">
-              <Button variant="outline" onClick={() => setStep("map")}>
-                Back
-              </Button>
-              <Button
-                onClick={confirmImport}
-                disabled={importMutation.isPending}
-                className="bg-gradient-primary hover:opacity-90"
-              >
-                {importMutation.isPending ? "Importing..." : `Import ${parsedData.length} Trades`}
-              </Button>
+                  {parsedPositions.length > 20 && (
+                    <div className="p-4 text-center text-sm text-muted-foreground border-t border-slate-700">
+                      Showing first 20 of {parsedPositions.length} positions
+                    </div>
+                  )}
+                </div>
             </div>
           </CardContent>
         </Card>
+        </>
       )}
 
-      {step === "complete" && (
-        <Card className="border-border/50 shadow-card bg-gradient-card">
+      {/* Import Summary */}
+      {importSummary && (
+        <Card className="border-border/50 shadow-lg bg-slate-800">
           <CardHeader>
-            <CardTitle>Import Complete</CardTitle>
+            <CardTitle>Import Summary</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert>
-              <CheckCircle className="h-4 w-4" />
-              <AlertDescription>
-                Successfully imported {importResults.success} trades
-              </AlertDescription>
-            </Alert>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-4 flex-wrap">
+                {importSummary.imported > 0 && (
+                  <div className="flex items-center gap-2 text-green-400">
+                    <CheckCircle className="h-5 w-5" />
+                      <span className="font-semibold">Imported: {importSummary.imported}</span>
+                    </div>
+                  )}
+                  {importSummary.skippedDuplicates > 0 && (
+                    <div className="flex items-center gap-2 text-yellow-400">
+                      <AlertCircle className="h-5 w-5" />
+                      <span className="font-semibold">Skipped duplicates: {importSummary.skippedDuplicates}</span>
+                  </div>
+                )}
+                {importSummary.failed > 0 && (
+                  <div className="flex items-center gap-2 text-red-400">
+                    <AlertCircle className="h-5 w-5" />
+                      <span className="font-semibold">Failed: {importSummary.failed}</span>
+                  </div>
+                )}
+              </div>
 
-            {importResults.failed > 0 && (
+              {importSummary.errors.length > 0 && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {importResults.failed} trades failed to import
+                    <div className="space-y-1">
+                      <p className="font-semibold">Errors:</p>
+                      <ul className="list-disc list-inside text-sm space-y-1">
+                        {importSummary.errors.slice(0, 10).map((error, idx) => (
+                            <li key={idx}>
+                              Row {error.index + 1}: {error.error instanceof Error ? error.error.message : String(error.error)}
+                            </li>
+                        ))}
+                      </ul>
+                      {importSummary.errors.length > 10 && (
+                        <p className="text-xs mt-2">... and {importSummary.errors.length - 10} more errors</p>
+                      )}
+                    </div>
                 </AlertDescription>
               </Alert>
             )}
-
-            {importResults.errors.length > 0 && (
-              <div className="space-y-2">
-                <Label>Errors:</Label>
-                <div className="text-sm text-muted-foreground space-y-1 max-h-48 overflow-auto">
-                  {importResults.errors.slice(0, 10).map((error, idx) => (
-                    <div key={idx}>{error}</div>
-                  ))}
-                  {importResults.errors.length > 10 && (
-                    <div>... and {importResults.errors.length - 10} more errors</div>
-                  )}
-                </div>
               </div>
-            )}
 
-            <Button onClick={reset} className="w-full">
-              Import Another File
-            </Button>
+              {importSummary.imported > 0 && (
+                <div className="pt-4">
+                  <Button onClick={() => navigate("/trades")} className="bg-gradient-primary hover:opacity-90">
+                    View Trades
+                  </Button>
+                </div>
+              )}
+              </div>
           </CardContent>
         </Card>
       )}

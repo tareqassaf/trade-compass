@@ -61,39 +61,63 @@ export default function AddTrade() {
   const { data: instruments } = useQuery({
     queryKey: ["instruments"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("instruments")
-        .select("*")
-        .eq("is_active", true)
-        .order("symbol");
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("instruments")
+          .select("*")
+          .eq("is_active", true)
+          .order("symbol");
+        if (error) {
+          console.warn("Supabase query error (migrating to Firebase):", error);
+          return [];
+        }
+        return data || [];
+      } catch (error) {
+        console.warn("Error fetching instruments (migrating to Firebase):", error);
+        return [];
+      }
     },
   });
 
   const { data: strategies } = useQuery({
     queryKey: ["strategies"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("strategies")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("strategies")
+          .select("*")
+          .eq("is_active", true)
+          .order("name");
+        if (error) {
+          console.warn("Supabase query error (migrating to Firebase):", error);
+          return [];
+        }
+        return data || [];
+      } catch (error) {
+        console.warn("Error fetching strategies (migrating to Firebase):", error);
+        return [];
+      }
     },
   });
 
   const { data: sessions } = useQuery({
     queryKey: ["sessions"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("is_active", true)
-        .order("name");
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("sessions")
+          .select("*")
+          .eq("is_active", true)
+          .order("name");
+        if (error) {
+          console.warn("Supabase query error (migrating to Firebase):", error);
+          return [];
+        }
+        return data || [];
+      } catch (error) {
+        console.warn("Error fetching sessions (migrating to Firebase):", error);
+        return [];
+      }
     },
   });
 
@@ -128,40 +152,53 @@ export default function AddTrade() {
         order_type: formData.orderType,
         account_type: formData.accountType,
         size_lots: parseFloat(formData.sizeLots),
-        risk_percent: formData.riskPercent ? parseFloat(formData.riskPercent) : null,
-        planned_entry_low: formData.plannedEntryLow ? parseFloat(formData.plannedEntryLow) : null,
-        planned_entry_high: formData.plannedEntryHigh ? parseFloat(formData.plannedEntryHigh) : null,
+        risk_percent: formData.riskPercent ? (isNaN(parseFloat(formData.riskPercent)) ? null : parseFloat(formData.riskPercent)) : null,
+        planned_entry_low: formData.plannedEntryLow ? (isNaN(parseFloat(formData.plannedEntryLow)) ? null : parseFloat(formData.plannedEntryLow)) : null,
+        planned_entry_high: formData.plannedEntryHigh ? (isNaN(parseFloat(formData.plannedEntryHigh)) ? null : parseFloat(formData.plannedEntryHigh)) : null,
         entry_price: parseFloat(formData.entryPrice),
         stop_loss_price: parseFloat(formData.stopLossPrice),
-        tp1_price: formData.tp1Price ? parseFloat(formData.tp1Price) : null,
-        tp2_price: formData.tp2Price ? parseFloat(formData.tp2Price) : null,
-        tp3_price: formData.tp3Price ? parseFloat(formData.tp3Price) : null,
-        exit_price: formData.exitPrice ? parseFloat(formData.exitPrice) : null,
-        sl_points: metrics.slPoints,
-        tp1_points: metrics.tp1Points,
-        tp2_points: metrics.tp2Points,
-        tp3_points: metrics.tp3Points,
-        pnl_points: metrics.pnlPoints,
-        pnl_amount: metrics.pnlAmount,
-        r_multiple: metrics.rMultiple,
-        mfe_points: formData.mfePoints ? parseFloat(formData.mfePoints) : null,
-        mae_points: formData.maePoints ? parseFloat(formData.maePoints) : null,
+        tp1_price: formData.tp1Price ? (isNaN(parseFloat(formData.tp1Price)) ? null : parseFloat(formData.tp1Price)) : null,
+        tp2_price: formData.tp2Price ? (isNaN(parseFloat(formData.tp2Price)) ? null : parseFloat(formData.tp2Price)) : null,
+        tp3_price: formData.tp3Price ? (isNaN(parseFloat(formData.tp3Price)) ? null : parseFloat(formData.tp3Price)) : null,
+        exit_price: formData.exitPrice ? (isNaN(parseFloat(formData.exitPrice)) ? null : parseFloat(formData.exitPrice)) : null,
+        sl_points: metrics.slPoints ?? null,
+        tp1_points: metrics.tp1Points ?? null,
+        tp2_points: metrics.tp2Points ?? null,
+        tp3_points: metrics.tp3Points ?? null,
+        pnl_points: metrics.pnlPoints ?? null,
+        pnl_amount: metrics.pnlAmount ?? null,
+        r_multiple: metrics.rMultiple ?? null,
+        mfe_points: formData.mfePoints ? (isNaN(parseFloat(formData.mfePoints)) ? null : parseFloat(formData.mfePoints)) : null,
+        mae_points: formData.maePoints ? (isNaN(parseFloat(formData.maePoints)) ? null : parseFloat(formData.maePoints)) : null,
         result: metrics.result,
-        rating: formData.rating ? parseInt(formData.rating) : null,
+        rating: formData.rating ? (isNaN(parseInt(formData.rating)) ? null : parseInt(formData.rating)) : null,
         notes: formData.notes || null,
         execution_errors: formData.executionErrors || null,
         pre_trade_plan: formData.preTradePlan || null,
         post_trade_review: formData.postTradeReview || null,
       };
 
-      const { data, error } = await supabase
-        .from("trades")
-        .insert(tradeData)
-        .select()
-        .single();
+      // Convert any undefined values to null (Supabase doesn't accept undefined, only null)
+      const cleanTradeData = Object.fromEntries(
+        Object.entries(tradeData).map(([key, value]) => [key, value === undefined ? null : value])
+      ) as typeof tradeData;
 
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("trades")
+          .insert(cleanTradeData)
+          .select()
+          .single();
+
+        if (error) {
+          console.warn("Supabase insert error (migrating to Firebase):", error);
+          throw new Error("Failed to save trade. Please migrate to Firebase.");
+        }
+        return data;
+      } catch (error: any) {
+        console.warn("Error creating trade (migrating to Firebase):", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trades"] });

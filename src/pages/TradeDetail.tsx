@@ -28,41 +28,57 @@ export default function TradeDetail() {
   const { data: trade, isLoading } = useQuery({
     queryKey: ["trade", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("trades")
-        .select(`
-          *,
-          instrument:instruments(symbol, name, tick_value, tick_size),
-          strategy:strategies(name, description),
-          session:sessions(name)
-        `)
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from("trades")
+          .select(`
+            *,
+            instrument:instruments(symbol, name, tick_value, tick_size),
+            strategy:strategies(name, description),
+            session:sessions(name)
+          `)
+          .eq("id", id)
+          .single();
+        if (error) {
+          console.warn("Supabase query error (migrating to Firebase):", error);
+          return null;
+        }
+        return data;
+      } catch (error) {
+        console.warn("Error fetching trade (migrating to Firebase):", error);
+        return null;
+      }
     },
     enabled: !!id,
   });
 
   const { data: averages } = useQuery({
-    queryKey: ["trade-averages", user?.id],
+    queryKey: ["trade-averages", (user as any)?.uid || (user as any)?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("trades")
-        .select("r_multiple, pnl_amount, result")
-        .eq("user_id", user!.id)
-        .not("exit_price", "is", null);
-      
-      if (error) throw error;
-      
-      const winningTrades = data.filter(t => t.result === "win");
-      const losingTrades = data.filter(t => t.result === "loss");
-      const avgR = data.reduce((sum, t) => sum + (t.r_multiple || 0), 0) / (data.length || 1);
-      const avgWin = winningTrades.reduce((sum, t) => sum + (t.pnl_amount || 0), 0) / (winningTrades.length || 1);
-      const avgLoss = losingTrades.reduce((sum, t) => sum + (t.pnl_amount || 0), 0) / (losingTrades.length || 1);
-      const winRate = (winningTrades.length / (data.length || 1)) * 100;
-      
-      return { avgR, avgWin, avgLoss, winRate, totalTrades: data.length };
+      try {
+        const { data, error } = await supabase
+          .from("trades")
+          .select("r_multiple, pnl_amount, result")
+          .eq("user_id", (user as any)?.uid || (user as any)?.id)
+          .not("exit_price", "is", null);
+        
+        if (error) {
+          console.warn("Supabase query error (migrating to Firebase):", error);
+          return { avgR: 0, avgWin: 0, avgLoss: 0, winRate: 0, totalTrades: 0 };
+        }
+        
+        const winningTrades = (data || []).filter(t => t.result === "win");
+        const losingTrades = (data || []).filter(t => t.result === "loss");
+        const avgR = (data || []).reduce((sum, t) => sum + (t.r_multiple || 0), 0) / ((data || []).length || 1);
+        const avgWin = winningTrades.length > 0 ? winningTrades.reduce((sum, t) => sum + (t.pnl_amount || 0), 0) / winningTrades.length : 0;
+        const avgLoss = losingTrades.length > 0 ? losingTrades.reduce((sum, t) => sum + (t.pnl_amount || 0), 0) / losingTrades.length : 0;
+        const winRate = ((data || []).length > 0 ? (winningTrades.length / (data || []).length) * 100 : 0);
+        
+        return { avgR, avgWin, avgLoss, winRate, totalTrades: (data || []).length };
+      } catch (error) {
+        console.warn("Error fetching trade averages (migrating to Firebase):", error);
+        return { avgR: 0, avgWin: 0, avgLoss: 0, winRate: 0, totalTrades: 0 };
+      }
     },
     enabled: !!user,
   });
@@ -82,9 +98,10 @@ export default function TradeDetail() {
         tickSize: trade?.instrument?.tick_size || 0.01,
       });
 
-      const { error } = await supabase
-        .from("trades")
-        .update({
+      try {
+        const { error } = await supabase
+          .from("trades")
+          .update({
           ...data,
           sl_points: metrics.slPoints,
           tp1_points: metrics.tp1Points,
@@ -97,7 +114,14 @@ export default function TradeDetail() {
         })
         .eq("id", id);
 
-      if (error) throw error;
+        if (error) {
+          console.warn("Supabase update error (migrating to Firebase):", error);
+          throw new Error("Failed to update trade. Please migrate to Firebase.");
+        }
+      } catch (error: any) {
+        console.warn("Error updating trade (migrating to Firebase):", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trade", id] });
